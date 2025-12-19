@@ -26,6 +26,8 @@
 // 理由: NEXT_PUBLIC_BASE_URLの誤設定でlocalhostが混入するケースを防ぐため
 // 2025/12/19 19:00 チェーン不整合検出を強化し誤送信を防止
 // 理由: 環境によってEthereumメインネット扱いで送信確認が出るケースがあったため
+// 2025/12/19 19:15 送信成功後に状態を再取得してタイマー表示を即時更新
+// 理由: 一部環境でイベント購読更新が遅れ、時間表示が反映されないため
 // -------------------------------------------------------
 
 'use client'
@@ -169,7 +171,7 @@ export default function Home() {
   const chainId = useChainId()
   const { switchChain } = useSwitchChain()
   const { data: hash, writeContract, isPending } = useWriteContract()
-  const { isLoading: isConfirming } = useWaitForTransactionReceipt({ hash })
+  const { isLoading: isConfirming, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({ hash, chainId: baseSepolia.id })
 
   // --- UI State ---
   const [lang, setLang] = useState<'en' | 'ja'>('en')
@@ -399,6 +401,32 @@ export default function Home() {
       refetchGameRound()
     },
   })
+
+  useEffect(() => {
+    if (!hash) return
+    if (!isTxSuccess) return
+
+    const refetchAfterTx = async () => {
+      const tasks: Array<Promise<unknown>> = [
+        refetchPrize(),
+        refetchDeadline(),
+        refetchDepositor(),
+        refetchGameRound(),
+      ]
+
+      if (address) {
+        tasks.push(refetchPendingWithdrawal(), refetchUserStat())
+      }
+
+      if (userStat && userStat[0] > 0n) {
+        tasks.push(refetchTokenURI())
+      }
+
+      await Promise.allSettled(tasks)
+    }
+
+    void refetchAfterTx()
+  }, [hash, isTxSuccess, address, userStat, refetchPrize, refetchDeadline, refetchDepositor, refetchGameRound, refetchPendingWithdrawal, refetchUserStat, refetchTokenURI])
 
   useWatchContractEvent({
     chainId: baseSepolia.id,
