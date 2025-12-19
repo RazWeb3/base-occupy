@@ -199,27 +199,48 @@ export default function Home() {
   }
 
   const refreshDiagnostics = async () => {
-    const w = window as unknown as { ethereum?: unknown }
-    setHasInjectedProvider(!!w.ethereum)
+    type Eip1193Provider = { request: (args: { method: string; params?: unknown }) => Promise<unknown> }
+
+    const w = window as unknown as { ethereum?: Eip1193Provider }
+    const injectedProvider = w.ethereum
+    setHasInjectedProvider(!!injectedProvider)
 
     const inMiniApp = await sdk.isInMiniApp().catch(() => false)
     setIsMiniApp(inMiniApp)
 
-    const caps = await sdk.getCapabilities().catch(() => null)
-    setCapabilities(caps ? (caps as string[]) : null)
+    if (inMiniApp) {
+      const caps = await sdk.getCapabilities().catch(() => null)
+      setCapabilities(caps ? (caps as string[]) : null)
 
-    const provider = await sdk.wallet.getEthereumProvider().catch(() => undefined)
-    setHasMiniAppProvider(!!provider)
-    if (!provider) {
+      const provider = await sdk.wallet.getEthereumProvider().catch(() => undefined)
+      setHasMiniAppProvider(!!provider)
+      if (!provider) {
+        setProviderChainId(null)
+        setProviderAccounts(null)
+        return
+      }
+
+      const chainId = await provider.request({ method: 'eth_chainId' }).catch(() => null)
+      setProviderChainId(typeof chainId === 'string' ? chainId : null)
+
+      const accounts = await provider.request({ method: 'eth_accounts' }).catch(() => null)
+      setProviderAccounts(Array.isArray(accounts) ? (accounts as string[]) : null)
+      return
+    }
+
+    setHasMiniAppProvider(false)
+    setCapabilities(null)
+
+    if (!injectedProvider) {
       setProviderChainId(null)
       setProviderAccounts(null)
       return
     }
 
-    const chainId = await provider.request({ method: 'eth_chainId' }).catch(() => null)
+    const chainId = await injectedProvider.request({ method: 'eth_chainId' }).catch(() => null)
     setProviderChainId(typeof chainId === 'string' ? chainId : null)
 
-    const accounts = await provider.request({ method: 'eth_accounts' }).catch(() => null)
+    const accounts = await injectedProvider.request({ method: 'eth_accounts' }).catch(() => null)
     setProviderAccounts(Array.isArray(accounts) ? (accounts as string[]) : null)
   }
 
@@ -256,10 +277,16 @@ export default function Home() {
   }
 
   const handleTestRequestAccounts = async () => {
+    type Eip1193Provider = { request: (args: { method: string; params?: unknown }) => Promise<unknown> }
     setRequestAccountsResult(null)
-    const provider = await sdk.wallet.getEthereumProvider().catch(() => undefined)
+
+    const inMiniApp = isMiniApp || (await sdk.isInMiniApp().catch(() => false))
+    const provider = inMiniApp
+      ? await sdk.wallet.getEthereumProvider().catch(() => undefined)
+      : (window as unknown as { ethereum?: Eip1193Provider }).ethereum
+
     if (!provider) {
-      setRequestAccountsResult('provider unavailable')
+      setRequestAccountsResult(inMiniApp ? 'mini app provider unavailable' : 'injected provider unavailable')
       return
     }
 
