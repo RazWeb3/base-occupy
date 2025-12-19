@@ -1,0 +1,21 @@
+{
+  "accountAssociation": {
+    "header": "eyJmaWQiOjE2NjAzNTMsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg2NzMwNmJiN2VjRTU0M0IwQ0IxNThBZWNhRUY1MkQyN0Y2MGUzQjgwIn0",
+    "payload": "eyJkb21haW4iOiJ0cmFlYmFzZWVjdGEudmVyY2VsLmFwcCJ9",
+    "signature": "EmQNNxxKEy+ALexdb988O1r/7PSfYF7FYkkOpFZHAidHdF8InVHcoiVyPomcDBYdM/PJhyEFrZDpas+KtrQt1Rs="
+  },
+  "miniapp": {
+    "version": "1",
+    "name": "Base Occupy",
+    "homeUrl": "https://traebaseecta.vercel.app",
+    "iconUrl": "https://traebaseecta.vercel.app/icon.png",
+    "splashImageUrl": "https://traebaseecta.vercel.app/splash.png",
+    "splashBackgroundColor": "#0f172a",
+    "description": "A strategic territory occupation game on Base. Occupy the throne and earn rewards!",
+    "primaryCategory": "social",
+    "tags": ["game", "strategy", "base", "occupy", "nft"],
+    "screenshotUrls": [
+      "https://traebaseecta.vercel.app/screenshot1.png"
+    ]
+  }
+}
