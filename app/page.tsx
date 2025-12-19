@@ -24,6 +24,8 @@
 // 理由: 開発中でも共有導線は常に公開URLを指す方が検証しやすいため
 // 2025/12/19 17:40 envがlocalhostでも本番URLへフォールバック
 // 理由: NEXT_PUBLIC_BASE_URLの誤設定でlocalhostが混入するケースを防ぐため
+// 2025/12/19 19:00 チェーン不整合検出を強化し誤送信を防止
+// 理由: 環境によってEthereumメインネット扱いで送信確認が出るケースがあったため
 // -------------------------------------------------------
 
 'use client'
@@ -93,6 +95,8 @@ const translations = {
     ethAccounts: "eth_accounts",
     testRequestAccounts: "Test eth_requestAccounts",
     requestAccountsResult: "eth_requestAccounts result",
+    wagmiChainId: "wagmi chainId",
+    expectedChainId: "expected chainId",
   },
   ja: {
     title: "Base Occupy",
@@ -148,6 +152,8 @@ const translations = {
     ethAccounts: "eth_accounts",
     testRequestAccounts: "eth_requestAccounts テスト",
     requestAccountsResult: "eth_requestAccounts 結果",
+    wagmiChainId: "wagmi chainId",
+    expectedChainId: "期待 chainId",
   }
 }
 
@@ -177,6 +183,9 @@ export default function Home() {
   const [providerAccounts, setProviderAccounts] = useState<string[] | null>(null)
   const [requestAccountsResult, setRequestAccountsResult] = useState<string | null>(null)
   const t = translations[lang]
+
+  const expectedProviderChainId = `0x${baseSepolia.id.toString(16)}`
+  const isOnExpectedChain = chainId === baseSepolia.id && (!providerChainId || providerChainId.toLowerCase() === expectedProviderChainId)
 
   const getBaseUrl = () => {
     const envUrl = process.env.NEXT_PUBLIC_BASE_URL
@@ -262,6 +271,11 @@ export default function Home() {
     };
     initSdk();
   }, []);
+
+  useEffect(() => {
+    if (!isConnected) return
+    void refreshDiagnostics()
+  }, [isConnected, chainId])
 
   const handleConnectWallet = async () => {
     const inMiniApp = isMiniApp || (await sdk.isInMiniApp().catch(() => false))
@@ -450,6 +464,15 @@ export default function Home() {
 
   // --- Actions ---
   const handleOccupy = () => {
+    if (!isOnExpectedChain) {
+      try {
+        switchChain({ chainId: baseSepolia.id })
+        void refreshDiagnostics()
+      } catch {
+        void refreshDiagnostics()
+      }
+      return
+    }
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
@@ -459,6 +482,15 @@ export default function Home() {
   }
 
   const handleClaim = () => {
+    if (!isOnExpectedChain) {
+      try {
+        switchChain({ chainId: baseSepolia.id })
+        void refreshDiagnostics()
+      } catch {
+        void refreshDiagnostics()
+      }
+      return
+    }
     writeContract({
       address: CONTRACT_ADDRESS,
       abi: CONTRACT_ABI,
@@ -467,6 +499,15 @@ export default function Home() {
   }
 
   const handleSettle = () => {
+    if (!isOnExpectedChain) {
+      try {
+        switchChain({ chainId: baseSepolia.id })
+        void refreshDiagnostics()
+      } catch {
+        void refreshDiagnostics()
+      }
+      return
+    }
     writeContract({
         address: CONTRACT_ADDRESS,
         abi: CONTRACT_ABI,
@@ -616,6 +657,14 @@ export default function Home() {
                                 <div className="text-xs text-slate-400">{t.ethChainId}</div>
                                 <div className="font-mono break-all">{providerChainId ?? '-'}</div>
                               </div>
+                              <div className="bg-slate-900 p-2 rounded">
+                                <div className="text-xs text-slate-400">{t.wagmiChainId}</div>
+                                <div className="font-mono break-all">{String(chainId)}</div>
+                              </div>
+                              <div className="bg-slate-900 p-2 rounded">
+                                <div className="text-xs text-slate-400">{t.expectedChainId}</div>
+                                <div className="font-mono break-all">{String(baseSepolia.id)} ({expectedProviderChainId})</div>
+                              </div>
                             </div>
 
                             <div className="bg-slate-900 p-2 rounded">
@@ -704,13 +753,16 @@ export default function Home() {
                     >
                         {t.connectWallet}
                     </button>
-                ) : chainId !== baseSepolia.id ? (
+                ) : !isOnExpectedChain ? (
                     <div className="flex flex-col items-center gap-4 w-full">
                          <div className="text-red-400 font-bold">
                             {t.wrongNetwork}
                         </div>
                         <button
-                            onClick={() => switchChain({ chainId: baseSepolia.id })}
+                            onClick={() => {
+                              switchChain({ chainId: baseSepolia.id })
+                              void refreshDiagnostics()
+                            }}
                             className="w-full bg-red-600 hover:bg-red-500 py-4 rounded-xl font-bold text-lg shadow-lg animate-pulse transition-all"
                         >
                             {t.switchNetwork}
